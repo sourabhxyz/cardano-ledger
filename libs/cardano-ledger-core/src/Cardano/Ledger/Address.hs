@@ -56,6 +56,7 @@ module Cardano.Ledger.Address (
   fromCborRewardAcnt,
   Fail (..),
   Withdrawals (..),
+  maybePtr,
 )
 where
 
@@ -509,6 +510,11 @@ headerIsStakingScript = (`testBit` 5)
 headerIsBaseAddress :: Header -> Bool
 headerIsBaseAddress = not . (`testBit` 6)
 {-# INLINE headerIsBaseAddress #-}
+
+-- ??? like this but better, using testbit
+maybePtr :: Addr era -> Maybe Ptr
+maybePtr (Addr _ _ (StakeRefPtr p)) = Just p
+maybePtr _ = Nothing
 
 newtype Fail a = Fail {runFail :: Either String a}
   deriving newtype (Functor, Applicative, Monad)

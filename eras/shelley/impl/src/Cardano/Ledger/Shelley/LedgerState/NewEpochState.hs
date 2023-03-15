@@ -85,6 +85,7 @@ genesisState genDelegs0 utxo0 =
         (Coin 0)
         emptyGovernanceState
         (IStake mempty Map.empty)
+        mempty
     )
     (DPState dState def)
   where

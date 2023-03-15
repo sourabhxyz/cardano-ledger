@@ -72,7 +72,7 @@ totalAdaPotsES (EpochState (AccountState treasury_ reserves_) _ ls _ _ _) =
     , feesAdaPot = fees_
     }
   where
-    UTxOState u deposits fees_ _ _ = lsUTxOState ls
+    UTxOState u deposits fees_ _ _ _ = lsUTxOState ls
     DPState dstate _ = lsDPState ls
     rewards_ = fromCompact $ sumRewardsView (rewards dstate)
     coins = coinBalance u

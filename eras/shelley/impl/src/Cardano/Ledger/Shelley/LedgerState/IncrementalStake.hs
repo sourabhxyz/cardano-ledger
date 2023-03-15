@@ -110,9 +110,21 @@ incrementalAggregateUtxoCoinByCredential ::
   UTxO era ->
   IncrementalStake (EraCrypto era) ->
   IncrementalStake (EraCrypto era)
+
+--In UTXO rule: we iterate the utxo.
+  --For each utxo:
+      --whenever we find a pointer address:
+        -- check existing IncrementalStake.ptrMap.
+            --If the pointer is not there, add it to the IncrementalStake.ptrMap (with + if the utxo is is in outputs, with - if it is in inputs)
+            --If the pointer is there, update its value in the IncrementalStake.ptrMap:  add the coin to the existing value (if the utxo is in the outputs) or subtract it (if the utxo is in the inputs)
+      -- whenever we find a stake addres:
+          -- check existing IncrementalStake.credMap
+            --If the credential is not there, add it to the IncrementalStake.credMap (with + if the utxo is is in outputs, with - if it is in inputs)
+            --If the credential is there, update its value in the IncrementalStake.credMap:  add the coin to the existing value (if the utxo is in the outputs) or subtract it (if the utxo is in the inputs)
 incrementalAggregateUtxoCoinByCredential pp mode (UTxO u) initial =
   Map.foldl' accum initial u
   where
+    keepOrDelete :: Coin -> Maybe Coin -> Maybe Coin
     keepOrDelete new Nothing =
       case mode new of
         Coin 0 -> Nothing
@@ -131,6 +143,7 @@ incrementalAggregateUtxoCoinByCredential pp mode (UTxO u) initial =
                 else IStake stake (Map.alter (keepOrDelete c) p ptrs)
             Addr _ _ (StakeRefBase hk) -> IStake (Map.alter (keepOrDelete c) hk stake) ptrs
             _other -> ans
+
 
 -- ================================================
 
@@ -159,6 +172,7 @@ smartUTxOState pp utxo c1 c2 st =
     c2
     st
     (updateStakeDistribution pp mempty mempty utxo)
+    mempty -- ???: not sure?, maybe recompute pointers
 
 -- =======================================================================
 -- Part 2. Compute a Snapshot using the IncrementalStake in Snap rule
@@ -211,6 +225,7 @@ incrementalStakeDistr pp (IStake credStake ptrStake) ds ps =
     ignorePtrs = HardForks.forgoPointerAddressResolution (pp ^. ppProtocolVersionL)
     -- pre Conway: (dom activeDelegs ◁ credStake) ∪ (dom activeDelegs ◁ ptrStake)
     -- afterwards we forgo ptr resolution: (dom activeDelegs ◁ credStake)
+    -- step1 ::  Map (Credential 'Staking (EraCrypto era)) Coin
     step1 =
       if ignorePtrs
         then activeCreds
@@ -218,6 +233,7 @@ incrementalStakeDistr pp (IStake credStake ptrStake) ds ps =
         -- and combining the result of the lookup with teh ordinary stake, keeping only the active credentials
           Map.foldlWithKey' addResolvedPointer activeCreds ptrStake
     step2 = aggregateActiveStake triplesMap step1
+    --addResolvedPointer :: Map (Credential 'Staking (EraCrypto era)) Coin -> Ptr -> Coin -> Map (Credential 'Staking (EraCrypto era)) Coin
     addResolvedPointer ans ptr coin =
       case Map.lookup ptr ptrsMap of -- map of ptrs to credentials
         Just cred | VMap.member cred delegs_ -> Map.insertWith (<>) cred coin ans

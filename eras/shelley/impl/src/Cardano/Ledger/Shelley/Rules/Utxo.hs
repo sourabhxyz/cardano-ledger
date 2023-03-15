@@ -105,7 +105,7 @@ import Control.State.Transition (
 import Data.Foldable (foldl', toList)
 import qualified Data.Map.Strict as Map
 import Data.MapExtras (extractKeys)
-import Data.Set (Set)
+import Data.Set (Set, union)
 import qualified Data.Set as Set
 import Data.Word (Word8)
 import GHC.Generics (Generic)
@@ -113,6 +113,8 @@ import Lens.Micro
 import Lens.Micro.Extras (view)
 import NoThunks.Class (NoThunks (..))
 import Validation (failureUnless)
+import Cardano.Ledger.Address (maybePtr)
+import Data.Maybe (mapMaybe)
 
 data UtxoEnv era
   = UtxoEnv
@@ -380,7 +382,7 @@ utxoInductive ::
   TransitionRule (utxo era)
 utxoInductive = do
   TRC (UtxoEnv slot pp dpstate genDelegs, u, tx) <- judgmentContext
-  let UTxOState utxo _ _ ppup _ = u
+  let UTxOState utxo _ _ ppup _ _ = u
   let txb = tx ^. bodyTxL
 
   {- txttl txb ≥ slot -}
@@ -583,6 +585,8 @@ validateMaxTxSizeUTxO pp tx =
     maxTxSize = toInteger (pp ^. ppMaxTxSizeL)
     txSize = tx ^. sizeTxF
 
+    -- scan outputs for pointer addresses and add them to a list (in the UTXO) create lens to quickly answer the question: is it a pointer (eg: bootstrap addr)
+
 updateUTxOState ::
   (EraTxBody era, GovernanceState era ~ ShelleyPPUPState era) =>
   PParams era ->
@@ -591,13 +595,18 @@ updateUTxOState ::
   Coin ->
   ShelleyPPUPState era ->
   UTxOState era
-updateUTxOState pp UTxOState {utxosUtxo, utxosDeposited, utxosFees, utxosStakeDistr} txb depositChange ppups =
+updateUTxOState pp UTxOState {utxosUtxo, utxosDeposited, utxosFees, utxosStakeDistr, utxosPtrs} txb depositChange ppups =
   let UTxO utxo = utxosUtxo
       !utxoAdd = txouts txb -- These will be inserted into the UTxO
       {- utxoDel  = txins txb ◁ utxo -}
       !(utxoWithout, utxoDel) = extractKeys utxo (txb ^. inputsTxBodyL)
       {- newUTxO = (txins txb ⋪ utxo) ∪ outs txb -}
       newUTxO = utxoWithout `Map.union` unUTxO utxoAdd
+      newPtrs = mapMaybe (\txout -> maybePtr (txout ^. addrTxOutL)) $ Map.elems $ unUTxO utxoAdd
+      --in this result:
+        -- the IncrementalStake.ptrMap has been updated for every pointer address we find either in ins or outs.
+        -- the IncrementalStake.credMap has been updated for every stake address we find in either ins or outs
+      -- find a way to extract this info: whether to add or subtract value from ptrMap and reuse it to populate the pointer cache (map)
       newIncStakeDistro = updateStakeDistribution pp utxosStakeDistr (UTxO utxoDel) utxoAdd
    in UTxOState
         { utxosUtxo = UTxO newUTxO
@@ -605,6 +614,7 @@ updateUTxOState pp UTxOState {utxosUtxo, utxosDeposited, utxosFees, utxosStakeDi
         , utxosFees = utxosFees <> txb ^. feeTxBodyL
         , utxosGovernance = ppups
         , utxosStakeDistr = newIncStakeDistro
+        , utxosPtrs = utxosPtrs `union`  Set.fromList newPtrs
         }
 
 instance

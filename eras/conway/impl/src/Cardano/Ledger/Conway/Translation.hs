@@ -9,7 +9,11 @@
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE TypeSynonymInstances #-}
 {-# LANGUAGE UndecidableInstances #-}
+{-# LANGUAGE DataKinds #-}
+
 {-# OPTIONS_GHC -Wno-orphans #-}
+{-# OPTIONS_GHC -Wno-unused-matches #-}
+{-# OPTIONS_GHC -Wno-unused-local-binds #-}
 
 module Cardano.Ledger.Conway.Translation where
 
@@ -31,12 +35,15 @@ import Cardano.Ledger.Shelley.API (
   EpochState (..),
   NewEpochState (..),
   StrictMaybe (..),
-  UTxOState (..),
+  UTxOState (..), LedgerState (..), IncrementalStake (..), KeyRole (..)
  )
 import qualified Cardano.Ledger.Shelley.API as API
 import Data.Coerce
 import qualified Data.Map.Strict as Map
 import Lens.Micro
+import Data.Set (Set, elemAt)
+import Cardano.Ledger.Credential (Ptr, Credential)
+import qualified Cardano.Ledger.Val as Val ((<->))
 
 --------------------------------------------------------------------------------
 -- Translation from Babbage to Conway
@@ -101,6 +108,7 @@ instance Crypto c => TranslateEra (ConwayEra c) EpochState where
     pure
       EpochState
         { esAccountState = esAccountState es
+        -- ???: do we have to also adjust the snapshots?
         , esSnapshots = esSnapshots es
         , esLState = translateEra' ctxt $ esLState es
         , esPrevPp = upgradePParams () $ esPrevPp es
@@ -128,7 +136,8 @@ instance Crypto c => TranslateEra (ConwayEra c) UTxOState where
         , API.utxosDeposited = API.utxosDeposited us
         , API.utxosFees = API.utxosFees us
         , API.utxosGovernance = emptyGovernanceState
-        , API.utxosStakeDistr = API.utxosStakeDistr us
+        , API.utxosStakeDistr = adjustIncrStake (API.utxosPtrs us) (API.utxosStakeDistr us) undefined
+        , API.utxosPtrs = API.utxosPtrs us
         }
 
 instance Crypto c => TranslateEra (ConwayEra c) API.UTxO where
@@ -156,3 +165,29 @@ translateScript :: Crypto c => Script (BabbageEra c) -> Script (ConwayEra c)
 translateScript = \case
   TimelockScript ts -> TimelockScript $ translateTimelock ts
   PlutusScript l sbs -> PlutusScript l sbs
+
+adjustIncrStake ::
+  Set Ptr ->
+  IncrementalStake (EraCrypto (BabbageEra c)) ->
+  Map.Map Ptr (Credential 'Staking (EraCrypto (ConwayEra c))) ->
+  IncrementalStake (EraCrypto (ConwayEra c))
+adjustIncrStake ptrs incrStake@(IStake credMap ptrMap) ptrToCredsMap =
+  let
+      firstPtr = elemAt 0 ptrs --TODO: replace with fold, to do it for ptrs in the set
+      cred = Map.lookup firstPtr ptrToCredsMap
+      ptrVal = Map.lookup firstPtr ptrMap
+      adjust :: API.Coin -> Credential 'Staking (EraCrypto (BabbageEra c)) -> API.Coin -> API.Coin
+      adjust toSubtract c v = (Val.<->) v toSubtract
+      updatedCredMap = case (cred, ptrVal) of
+         (Just c, Just v) -> Map.adjustWithKey (adjust v) c credMap
+         _ -> credMap
+  in IStake updatedCredMap ptrMap --todo: should we remove the ptr from ptrMap?
+      -- f :: IncrementalStake (EraCrypto (BabbageEra c)) -> Ptr -> IncrementalStake (EraCrypto (BabbageEra c))
+      -- f (IStake credMap ptrMap) ptr = undefined
+
+
+incrStakeEpochStateL :: Lens' (EpochState era) (API.IncrementalStake (EraCrypto era))
+incrStakeEpochStateL =
+  lens
+    (\es -> (utxosStakeDistr . lsUTxOState . esLState) es)
+    (\es incrStake -> es {esLState = (esLState es) {lsUTxOState = ((lsUTxOState . esLState) es) {utxosStakeDistr = incrStake}} })

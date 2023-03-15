@@ -161,6 +161,7 @@ translateToShelleyLedgerState transCtxt epochNo cvs =
               , utxosFees = Coin 0
               , utxosGovernance = emptyGovernanceState
               , utxosStakeDistr = IStake mempty Map.empty
+              , utxosPtrs = mempty
               }
         , lsDPState =
             DPState

@@ -17,6 +17,7 @@
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UndecidableInstances #-}
 {-# OPTIONS_GHC -Wno-deprecations #-}
+{-# LANGUAGE InstanceSigs #-}
 
 module Cardano.Ledger.Shelley.LedgerState.Types where
 
@@ -69,6 +70,7 @@ import qualified Data.Map.Strict as Map
 import GHC.Generics (Generic)
 import Lens.Micro (Lens', lens, _1, _2)
 import NoThunks.Class (NoThunks (..))
+import Data.Set (Set)
 
 -- ==================================
 
@@ -246,6 +248,7 @@ data UTxOState era = UTxOState
   , utxosFees :: !Coin
   , utxosGovernance :: !(GovernanceState era)
   , utxosStakeDistr :: !(IncrementalStake (EraCrypto era))
+  , utxosPtrs :: Set Ptr  --- ??? Map Ptr Coin
   }
   deriving (Generic)
 
@@ -295,7 +298,7 @@ instance
   ) =>
   EncCBOR (UTxOState era)
   where
-  encCBOR (UTxOState ut dp fs us sd) =
+  encCBOR (UTxOState ut dp fs us sd _) = -- ???...enc ptr?
     encodeListLen 5 <> encCBOR ut <> encCBOR dp <> encCBOR fs <> encCBOR us <> encCBOR sd
 
 instance
@@ -314,6 +317,8 @@ instance
       utxosFees <- decCBOR
       utxosGovernance <- decCBOR
       utxosStakeDistr <- decShareCBOR credInterns
+      -- ???: should we serialize/deserialize?
+      let utxosPtrs = undefined
       pure UTxOState {..}
 
 instance (EraTxOut era, EraGovernance era) => ToCBOR (UTxOState era) where
@@ -509,7 +514,7 @@ instance (EraTxOut era, EraGovernance era) => FromCBOR (LedgerState era) where
 --------------------------------------------------------------------------------
 
 instance EraGovernance era => Default (UTxOState era) where
-  def = UTxOState mempty mempty mempty def mempty
+  def = UTxOState mempty mempty mempty def mempty mempty
 
 instance
   (Default (LedgerState era), Default (PParams era)) =>

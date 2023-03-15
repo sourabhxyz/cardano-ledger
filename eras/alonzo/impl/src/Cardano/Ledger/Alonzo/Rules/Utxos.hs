@@ -232,7 +232,7 @@ scriptsValidateTransition ::
   ) =>
   TransitionRule (AlonzoUTXOS era)
 scriptsValidateTransition = do
-  TRC (UtxoEnv slot pp dpstate genDelegs, u@(UTxOState utxo _ _ pup _), tx) <-
+  TRC (UtxoEnv slot pp dpstate genDelegs, u@(UTxOState utxo _ _ pup _ _), tx) <-
     judgmentContext
   let txBody = tx ^. bodyTxL
       protVer = pp ^. ppProtocolVersionL
@@ -269,7 +269,7 @@ scriptsNotValidateTransition ::
   ) =>
   TransitionRule (AlonzoUTXOS era)
 scriptsNotValidateTransition = do
-  TRC (UtxoEnv slot pp _ _, us@(UTxOState utxo _ fees _ _), tx) <- judgmentContext
+  TRC (UtxoEnv slot pp _ _, us@(UTxOState utxo _ fees _ _ _), tx) <- judgmentContext
   let txBody = tx ^. bodyTxL
 
   let !_ = traceEvent invalidBegin ()
