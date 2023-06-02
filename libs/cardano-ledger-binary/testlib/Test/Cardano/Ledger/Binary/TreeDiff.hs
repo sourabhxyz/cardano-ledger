@@ -36,7 +36,7 @@ import Test.Tasty.HUnit (Assertion, assertFailure)
 --------------------------------------------------------------------------------
 
 showExpr :: ToExpr a => a -> String
-showExpr = show . ansiWlExpr . toExpr
+showExpr = show . ansiExpr . toExpr
 
 -- | Wraps regular ByteString, but shows and diffs it as hex
 newtype HexBytes = HexBytes {unHexBytes :: BS.ByteString}
