@@ -10,23 +10,23 @@
 module Test.Cardano.Ledger.Conway.Arbitrary () where
 
 import Cardano.Ledger.Alonzo.Scripts (AlonzoScript)
-import Cardano.Ledger.BaseTypes (StrictMaybe)
 import Cardano.Ledger.Binary (Sized)
 import Cardano.Ledger.Conway
 import Cardano.Ledger.Conway.Core
 import Cardano.Ledger.Conway.Genesis (ConwayGenesis (..))
 import Cardano.Ledger.Conway.Governance
-import Cardano.Ledger.Conway.PParams
 import Cardano.Ledger.Conway.Rules
 import Cardano.Ledger.Conway.TxBody
 import Cardano.Ledger.Conway.TxCert
 import Cardano.Ledger.Crypto (Crypto)
 import Cardano.Ledger.Language (Language (..))
 import Control.State.Transition.Extended (STS (Event))
-import Data.Functor.Identity (Identity)
 import Test.Cardano.Ledger.Alonzo.Arbitrary (genAlonzoScript)
 import Test.Cardano.Ledger.Babbage.Arbitrary ()
 import Test.Cardano.Ledger.Common
+import Cardano.Ledger.Conway.PParams (ConwayPParams (..))
+import Data.Functor.Identity (Identity)
+import Cardano.Ledger.BaseTypes (StrictMaybe)
 
 instance Crypto c => Arbitrary (ConwayGenesis c) where
   arbitrary = ConwayGenesis <$> arbitrary
@@ -92,6 +92,7 @@ instance
     ConwayGovernance
       <$> arbitrary
       <*> arbitrary
+      <*> arbitrary
 
 instance
   (Era era, Arbitrary (PParams era), Arbitrary (PParamsUpdate era)) =>
@@ -100,6 +101,7 @@ instance
   arbitrary =
     RatifyState
       <$> arbitrary
+      <*> arbitrary
       <*> arbitrary
 
 instance
@@ -121,7 +123,6 @@ instance (Era era, Arbitrary (PParamsUpdate era)) => Arbitrary (GovernanceAction
   arbitrary =
     GovernanceActionState
       <$> arbitrary
-      <*> arbitrary
       <*> arbitrary
       <*> arbitrary
       <*> arbitrary
@@ -190,7 +191,7 @@ instance
 -- Cardano.Ledger.Conway.Rules -----------------------------------------------------------
 ------------------------------------------------------------------------------------------
 
--- GOV
+-- TALLY
 
 instance Era era => Arbitrary (GovEnv era) where
   arbitrary =
@@ -208,7 +209,7 @@ instance Era era => Arbitrary (VotingProcedure era) where
   arbitrary = VotingProcedure <$> arbitrary <*> arbitrary <*> arbitrary <*> arbitrary
 
 instance (Era era, Arbitrary (PParamsUpdate era)) => Arbitrary (ProposalProcedure era) where
-  arbitrary = ProposalProcedure <$> arbitrary <*> arbitrary <*> arbitrary <*> arbitrary
+  arbitrary = ProposalProcedure <$> arbitrary <*> arbitrary <*> arbitrary
 
 instance (Era era, Arbitrary (PParamsUpdate era)) => Arbitrary (GovernanceProcedures era) where
   arbitrary =
@@ -259,20 +260,6 @@ instance
       [ DeltaRewardEvent <$> arbitrary
       , RestrainedRewards <$> arbitrary <*> arbitrary <*> arbitrary
       ]
-
--- TICKF
-
-instance
-  Era era =>
-  Arbitrary (ConwayTickfPredFailure era)
-  where
-  arbitrary = undefined
-
-instance
-  Era era =>
-  Arbitrary (ConwayTickfEvent era)
-  where
-  arbitrary = undefined
 
 -- CERTS
 

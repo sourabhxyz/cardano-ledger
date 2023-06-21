@@ -24,7 +24,6 @@ module Cardano.Ledger.Conway.Rules.Gov (
 import Cardano.Ledger.BaseTypes (EpochNo (..), ShelleyBase)
 import Cardano.Ledger.Binary (DecCBOR (..), EncCBOR (..), FromCBOR (..), ToCBOR (..))
 import Cardano.Ledger.Binary.Coders (Decode (..), Encode (..), decode, encode, (!>), (<!))
-import Cardano.Ledger.Coin (Coin (..))
 import Cardano.Ledger.Conway.Era (ConwayGOV)
 import Cardano.Ledger.Conway.Governance (
   ConwayGovState (..),
@@ -123,12 +122,11 @@ addVote VotingProcedure {vProcGovActionId, vProcVoter, vProcVote} (ConwayGovStat
 addAction ::
   EpochNo ->
   GovernanceActionId (EraCrypto era) ->
-  Coin ->
   KeyHash 'Staking (EraCrypto era) ->
   GovernanceAction era ->
   ConwayGovState era ->
   ConwayGovState era
-addAction epoch gaid c addr act (ConwayGovState st) =
+addAction epoch gaid addr act (ConwayGovState st) =
   ConwayGovState $
     Map.insert gaid gai' st
   where
@@ -137,7 +135,6 @@ addAction epoch gaid c addr act (ConwayGovState st) =
         { gasCommitteeVotes = mempty
         , gasDRepVotes = mempty
         , gasStakePoolVotes = mempty
-        , gasDeposit = c
         , gasProposedIn = epoch
         , gasAction = act
         , gasReturnAddr = addr
@@ -162,7 +159,6 @@ govTransition = do
               addAction
                 epoch
                 (GovernanceActionId txid idx)
-                pProcDeposit
                 pProcReturnAddr
                 pProcGovernanceAction
                 st'

@@ -24,6 +24,7 @@ import Cardano.Ledger.Conway.Governance (
   Anchor,
   ConwayGovState (..),
   ConwayGovernance (..),
+  ConwayGovState (..),
   GovernanceAction (..),
   GovernanceActionId (..),
   GovernanceActionIx (..),
@@ -41,6 +42,8 @@ import Cardano.Ledger.Conway.Rules (
   ConwayGovCertPredFailure,
   ConwayGovPredFailure,
   ConwayLedgerPredFailure (..),
+  ConwayGovPredFailure,
+  ConwayGovCertPredFailure,
   EnactState (..),
   PredicateFailure,
   RatifyState (..),
@@ -263,14 +266,13 @@ instance PrettyA (Anchor era) where
   prettyA = viaShow
 
 instance PrettyA (PParamsUpdate era) => PrettyA (GovernanceActionState era) where
-  prettyA gas@(GovernanceActionState _ _ _ _ _ _ _) =
+  prettyA gas@(GovernanceActionState _ _ _ _ _ _) =
     let GovernanceActionState {..} = gas
      in ppRecord
           "GovernanceActionState"
           [ ("CommitteVotes", prettyA gasCommitteeVotes)
           , ("DRepVotes", prettyA gasDRepVotes)
           , ("StakePoolVotes", prettyA gasStakePoolVotes)
-          , ("Deposit", prettyA gasDeposit)
           , ("Return Address", prettyA gasReturnAddr)
           , ("Action", prettyA gasAction)
           , ("Proposed In", prettyA gasProposedIn)
@@ -295,12 +297,13 @@ instance
   ) =>
   PrettyA (RatifyState era)
   where
-  prettyA rs@(RatifyState _ _) =
+  prettyA rs@(RatifyState _ _ _) =
     let RatifyState {..} = rs
      in ppRecord
           "RatifyState"
           [ ("EnactState", prettyA rsEnactState)
           , ("Future", prettyA rsFuture)
+          , ("Removed", prettyA rsRemoved)
           ]
 
 instance
@@ -309,12 +312,13 @@ instance
   ) =>
   PrettyA (ConwayGovernance era)
   where
-  prettyA cg@(ConwayGovernance _ _) =
+  prettyA cg@(ConwayGovernance _ _ _) =
     let ConwayGovernance {..} = cg
      in ppRecord
           "ConwayGovernance"
           [ ("Gov", prettyA cgGov)
           , ("Ratify", prettyA cgRatify)
+          , ("PropDeposits", prettyA cgPropDeposits)
           ]
 
 instance

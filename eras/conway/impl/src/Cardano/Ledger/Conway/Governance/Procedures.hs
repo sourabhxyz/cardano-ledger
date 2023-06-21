@@ -267,8 +267,7 @@ instance EraPParams era => NFData (GovernanceProcedures era)
 deriving instance EraPParams era => Show (GovernanceProcedures era)
 
 data ProposalProcedure era = ProposalProcedure
-  { pProcDeposit :: !Coin
-  , pProcReturnAddr :: !(KeyHash 'Staking (EraCrypto era))
+  { pProcReturnAddr :: !(KeyHash 'Staking (EraCrypto era))
   , pProcGovernanceAction :: !(GovernanceAction era)
   , pProcAnchor :: !(Anchor (EraCrypto era))
   }
@@ -285,13 +284,11 @@ instance EraPParams era => DecCBOR (ProposalProcedure era) where
         <! From
         <! From
         <! From
-        <! From
 
 instance EraPParams era => EncCBOR (ProposalProcedure era) where
   encCBOR ProposalProcedure {..} =
     encode $
       Rec (ProposalProcedure @era)
-        !> To pProcDeposit
         !> To pProcReturnAddr
         !> To pProcGovernanceAction
         !> To pProcAnchor

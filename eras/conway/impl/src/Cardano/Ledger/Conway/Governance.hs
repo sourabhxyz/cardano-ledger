@@ -21,9 +21,6 @@ module Cardano.Ledger.Conway.Governance (
   EnactState (..),
   RatifyState (..),
   ConwayGovernance (..),
-  -- Lenses
-  cgGovL,
-  cgRatifyL,
   GovernanceAction (..),
   GovernanceActionState (..),
   GovernanceActionIx (..),
@@ -36,6 +33,10 @@ module Cardano.Ledger.Conway.Governance (
   GovernanceProcedures (..),
   Anchor (..),
   AnchorDataHash,
+  -- Lenses
+  cgGovL,
+  cgRatifyL,
+  cgPropDepositsL,
   ensConstitutionL,
   rsEnactStateL,
 ) where
@@ -75,7 +76,7 @@ import Cardano.Ledger.Credential (Credential (..))
 import Cardano.Ledger.Keys (KeyHash (..), KeyRole (..))
 import Cardano.Ledger.SafeHash (SafeHash)
 import Cardano.Ledger.Shelley.Governance
-import Control.DeepSeq (NFData)
+import Control.DeepSeq (NFData (..))
 import Data.Aeson (KeyValue, ToJSON (..), object, pairs, (.=))
 import Data.ByteString (ByteString)
 import Data.Default.Class (Default (..))
@@ -90,7 +91,6 @@ data GovernanceActionState era = GovernanceActionState
   { gasCommitteeVotes :: !(Map (Credential 'CommitteeHotKey (EraCrypto era)) Vote)
   , gasDRepVotes :: !(Map (Credential 'Voting (EraCrypto era)) Vote)
   , gasStakePoolVotes :: !(Map (KeyHash 'StakePool (EraCrypto era)) Vote)
-  , gasDeposit :: !Coin
   , gasReturnAddr :: !(KeyHash 'Staking (EraCrypto era))
   , gasAction :: !(GovernanceAction era)
   , gasProposedIn :: !EpochNo
@@ -102,12 +102,11 @@ instance EraPParams era => ToJSON (GovernanceActionState era) where
   toEncoding = pairs . mconcat . toGovernanceActionStatePairs
 
 toGovernanceActionStatePairs :: (KeyValue a, EraPParams era) => GovernanceActionState era -> [a]
-toGovernanceActionStatePairs gas@(GovernanceActionState _ _ _ _ _ _ _) =
+toGovernanceActionStatePairs gas@(GovernanceActionState _ _ _ _ _ _) =
   let GovernanceActionState {..} = gas
    in [ "committeeVotes" .= gasCommitteeVotes
       , "dRepVotes" .= gasDRepVotes
       , "stakePoolVotes" .= gasStakePoolVotes
-      , "deposit" .= gasDeposit
       , "returnAddr" .= gasReturnAddr
       , "action" .= gasAction
       , "proposedIn" .= gasProposedIn
@@ -131,7 +130,6 @@ instance EraPParams era => DecCBOR (GovernanceActionState era) where
         <! From
         <! From
         <! From
-        <! From
 
 instance EraPParams era => EncCBOR (GovernanceActionState era) where
   encCBOR GovernanceActionState {..} =
@@ -140,7 +138,6 @@ instance EraPParams era => EncCBOR (GovernanceActionState era) where
         !> To gasCommitteeVotes
         !> To gasDRepVotes
         !> To gasStakePoolVotes
-        !> To gasDeposit
         !> To gasReturnAddr
         !> To gasAction
         !> To gasProposedIn
@@ -249,7 +246,14 @@ instance EraPParams era => NoThunks (EnactState era)
 
 data RatifyState era = RatifyState
   { rsEnactState :: !(EnactState era)
-  , rsFuture :: !(StrictSeq (GovernanceActionId (EraCrypto era), GovernanceActionState era))
+  , rsFuture ::
+      !( StrictSeq
+          (GovernanceActionId (EraCrypto era), GovernanceActionState era)
+       )
+  , rsRemoved ::
+      !( StrictSeq
+          (GovernanceActionId (EraCrypto era), GovernanceActionState era)
+       )
   }
   deriving (Generic, Eq, Show)
 
@@ -264,6 +268,7 @@ instance EraPParams era => DecCBOR (RatifyState era) where
       RecD RatifyState
         <! From
         <! From
+        <! From
 
 instance EraPParams era => EncCBOR (RatifyState era) where
   encCBOR RatifyState {..} =
@@ -271,6 +276,7 @@ instance EraPParams era => EncCBOR (RatifyState era) where
       Rec RatifyState
         !> To rsEnactState
         !> To rsFuture
+        !> To rsRemoved
 
 instance EraPParams era => ToCBOR (RatifyState era) where
   toCBOR = toEraCBOR @era
@@ -287,15 +293,17 @@ instance EraPParams era => ToJSON (RatifyState era) where
   toEncoding = pairs . mconcat . toRatifyStatePairs
 
 toRatifyStatePairs :: (KeyValue a, EraPParams era) => RatifyState era -> [a]
-toRatifyStatePairs cg@(RatifyState _ _) =
+toRatifyStatePairs cg@(RatifyState _ _ _) =
   let RatifyState {..} = cg
    in [ "enactState" .= rsEnactState
       , "future" .= rsFuture
+      , "removed" .= rsRemoved
       ]
 
 data ConwayGovernance era = ConwayGovernance
   { cgGov :: !(ConwayGovState era)
   , cgRatify :: !(RatifyState era)
+  , cgPropDeposits :: !(Map (GovernanceActionId (EraCrypto era)) Coin)
   }
   deriving (Generic, Eq, Show)
 
@@ -305,10 +313,14 @@ cgGovL = lens cgGov (\x y -> x {cgGov = y})
 cgRatifyL :: Lens' (ConwayGovernance era) (RatifyState era)
 cgRatifyL = lens cgRatify (\x y -> x {cgRatify = y})
 
+cgPropDepositsL :: Lens' (ConwayGovernance era) (Map (GovernanceActionId (EraCrypto era)) Coin)
+cgPropDepositsL = lens cgPropDeposits (\x y -> x {cgPropDeposits = y})
+
 instance EraPParams era => DecCBOR (ConwayGovernance era) where
   decCBOR =
     decode $
       RecD ConwayGovernance
+        <! From
         <! From
         <! From
 
@@ -318,6 +330,7 @@ instance EraPParams era => EncCBOR (ConwayGovernance era) where
       Rec ConwayGovernance
         !> To cgGov
         !> To cgRatify
+        !> To cgPropDeposits
 
 instance EraPParams era => ToCBOR (ConwayGovernance era) where
   toCBOR = toEraCBOR @era
@@ -336,10 +349,11 @@ instance EraPParams era => ToJSON (ConwayGovernance era) where
   toEncoding = pairs . mconcat . toConwayGovernancePairs
 
 toConwayGovernancePairs :: (KeyValue a, EraPParams era) => ConwayGovernance era -> [a]
-toConwayGovernancePairs cg@(ConwayGovernance _ _) =
+toConwayGovernancePairs cg@(ConwayGovernance _ _ _) =
   let ConwayGovernance {..} = cg
    in [ "gov" .= cgGov
       , "ratify" .= cgRatify
+      , "propDeposits" .= cgPropDeposits
       ]
 
 instance EraPParams (ConwayEra c) => EraGovernance (ConwayEra c) where
