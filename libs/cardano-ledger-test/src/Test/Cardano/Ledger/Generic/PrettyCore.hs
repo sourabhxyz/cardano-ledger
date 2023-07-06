@@ -1508,6 +1508,7 @@ pcTxBodyField proof x = case x of
   Txnetworkid SNothing -> []
   Txnetworkid (SJust nid) -> [("network id", pcNetwork nid)]
   GovernanceProcs ga -> [("governance procedures", prettyA ga)]
+  TreasuryDonation c -> [("treasury donation", prettyA c)]
 
 pcTxField ::
   forall era.

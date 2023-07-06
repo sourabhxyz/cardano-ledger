@@ -37,7 +37,8 @@ module Cardano.Ledger.Conway.TxBody (
     ctbAdHash,
     ctbTxNetworkId,
     ctbVotingProcedures,
-    ctbProposalProcedures
+    ctbProposalProcedures,
+    ctbTreasuryDonation
   ),
 ) where
 
@@ -125,6 +126,7 @@ data ConwayTxBodyRaw era = ConwayTxBodyRaw
   , ctbrTxNetworkId :: !(StrictMaybe Network)
   , ctbrVotingProcedures :: !(StrictSeq (VotingProcedure era))
   , ctbrProposalProcedures :: !(StrictSeq (ProposalProcedure era))
+  , ctbrTreasuryDonation :: !Coin
   }
   deriving (Generic, Typeable)
 
@@ -256,6 +258,7 @@ basicConwayTxBodyRaw =
     SNothing
     SNothing
     SNothing
+    mempty
     mempty
     mempty
 
@@ -397,6 +400,7 @@ pattern ConwayTxBody ::
   StrictMaybe Network ->
   StrictSeq (VotingProcedure era) ->
   StrictSeq (ProposalProcedure era) ->
+  Coin ->
   ConwayTxBody era
 pattern ConwayTxBody
   { ctbSpendInputs
@@ -416,6 +420,7 @@ pattern ConwayTxBody
   , ctbTxNetworkId
   , ctbVotingProcedures
   , ctbProposalProcedures
+  , ctbTreasuryDonation
   } <-
   ( getMemoRawType ->
       ConwayTxBodyRaw
@@ -436,6 +441,7 @@ pattern ConwayTxBody
         , ctbrTxNetworkId = ctbTxNetworkId
         , ctbrVotingProcedures = ctbVotingProcedures
         , ctbrProposalProcedures = ctbProposalProcedures
+        , ctbrTreasuryDonation = ctbTreasuryDonation
         }
     )
   where
@@ -456,7 +462,8 @@ pattern ConwayTxBody
       adHashX
       txnetworkidX
       votingProcedures
-      proposalProcedures =
+      proposalProcedures
+      treasuryDonation =
         mkMemoized $
           ConwayTxBodyRaw
             inputsX
@@ -476,6 +483,7 @@ pattern ConwayTxBody
             txnetworkidX
             votingProcedures
             proposalProcedures
+            treasuryDonation
 
 {-# COMPLETE ConwayTxBody #-}
 
@@ -511,6 +519,7 @@ encodeTxBodyRaw ConwayTxBodyRaw {..} =
         !> encodeKeyedStrictMaybe 15 ctbrTxNetworkId
         !> Omit null (Key 19 (To ctbrVotingProcedures))
         !> Omit null (Key 20 (To ctbrProposalProcedures))
+        !> Omit (== mempty) (Key 21 (To ctbrTreasuryDonation))
 
 instance ConwayEraTxBody era => EncCBOR (ConwayTxBodyRaw era) where
   encCBOR = encode . encodeTxBodyRaw

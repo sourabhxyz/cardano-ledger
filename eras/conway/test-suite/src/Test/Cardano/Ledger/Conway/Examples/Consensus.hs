@@ -154,6 +154,7 @@ exampleTxBodyConway =
     (SJust Mainnet) -- txnetworkid
     mempty
     mempty
+    mempty
   where
     MaryValue _ exampleMultiAsset = MarySLE.exampleMultiAssetValue 3
 

@@ -125,6 +125,7 @@ data TxBodyField era
   | AdHash (StrictMaybe (AuxiliaryDataHash (EraCrypto era)))
   | Txnetworkid (StrictMaybe Network)
   | GovernanceProcs (GovernanceProcedures era)
+  | TreasuryDonation Coin
 
 pattern Inputs' :: [TxIn (EraCrypto era)] -> TxBodyField era -- Set
 
@@ -311,7 +312,7 @@ abstractTxBody (Alonzo _) (AlonzoTxBody inp col out cert wdrl fee vldt up req mn
   , AdHash adh
   , Txnetworkid net
   ]
-abstractTxBody (Conway _) (ConwayTxBody inp col ref out colret totcol cert wdrl fee vldt req mnt sih adh net vp pp) =
+abstractTxBody (Conway _) (ConwayTxBody inp col ref out colret totcol cert wdrl fee vldt req mnt sih adh net vp pp don) =
   [ Inputs inp
   , Collateral col
   , RefInputs ref
@@ -328,6 +329,7 @@ abstractTxBody (Conway _) (ConwayTxBody inp col ref out colret totcol cert wdrl 
   , AdHash adh
   , Txnetworkid net
   , GovernanceProcs $ GovernanceProcedures (fromStrict vp) (fromStrict pp)
+  , TreasuryDonation don
   ]
 abstractTxBody (Babbage _) (BabbageTxBody inp col ref out colret totcol cert wdrl fee vldt up req mnt sih adh net) =
   [ Inputs inp
