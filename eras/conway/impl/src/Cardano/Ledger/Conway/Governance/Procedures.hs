@@ -1,5 +1,6 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE LambdaCase #-}
@@ -16,6 +17,7 @@
 
 module Cardano.Ledger.Conway.Governance.Procedures (
   GovernanceProcedures (..),
+  VotingProcedures (..),
   VotingProcedure (..),
   ProposalProcedure (..),
   Anchor (..),
@@ -41,7 +43,15 @@ import Cardano.Ledger.Binary (
   encodeWord8,
   invalidKey,
  )
-import Cardano.Ledger.Binary.Coders (Decode (..), Encode (..), decode, decodeRecordSum, encode, (!>), (<!))
+import Cardano.Ledger.Binary.Coders (
+  Decode (..),
+  Encode (..),
+  decode,
+  decodeRecordSum,
+  encode,
+  (!>),
+  (<!),
+ )
 import Cardano.Ledger.Coin (Coin)
 import Cardano.Ledger.Core (Era (..), EraPParams, PParamsUpdate)
 import Cardano.Ledger.Credential (Credential (..))
@@ -128,6 +138,10 @@ data Voter c
 
 instance Crypto c => ToJSON (Voter c)
 
+-- TODO: Make it nicer, eg. "DRep-ScriptHash<0xdeadbeef>..."
+-- Will also need a ToJSONKey instance for Credential.
+instance Crypto c => ToJSONKey (Voter c)
+
 instance Crypto c => DecCBOR (Voter c) where
   decCBOR = decodeRecordSum "Voter" $ \case
     0 -> (2,) . CommitteeVoter . KeyHashObj <$> decCBOR
@@ -211,10 +225,18 @@ toAnchorPairs vote@(Anchor _ _) =
       , "dataHash" .= anchorDataHash
       ]
 
+newtype VotingProcedures era = VotingProcedures
+  { unVotingProcedures ::
+      Map (Voter (EraCrypto era)) (Map (GovernanceActionId (EraCrypto era)) (VotingProcedure era))
+  }
+  deriving stock (Generic, Eq, Show)
+  -- TODO: Fix DecCBOR instance to prevent nested empty maps
+  deriving newtype (NoThunks, EncCBOR, DecCBOR, ToJSON)
+
+deriving newtype instance Era era => NFData (VotingProcedures era)
+
 data VotingProcedure era = VotingProcedure
-  { vProcGovActionId :: !(GovernanceActionId (EraCrypto era))
-  , vProcVoter :: !(Voter (EraCrypto era))
-  , vProcVote :: !Vote
+  { vProcVote :: !Vote
   , vProcAnchor :: !(StrictMaybe (Anchor (EraCrypto era)))
   }
   deriving (Generic, Eq, Show)
@@ -228,16 +250,12 @@ instance Era era => DecCBOR (VotingProcedure era) where
     decode $
       RecD VotingProcedure
         <! From
-        <! From
-        <! From
         <! D (decodeNullStrictMaybe decCBOR)
 
 instance Era era => EncCBOR (VotingProcedure era) where
   encCBOR VotingProcedure {..} =
     encode $
       Rec (VotingProcedure @era)
-        !> To vProcGovActionId
-        !> To vProcVoter
         !> To vProcVote
         !> E (encodeNullStrictMaybe encCBOR) vProcAnchor
 
@@ -246,16 +264,14 @@ instance EraPParams era => ToJSON (VotingProcedure era) where
   toEncoding = pairs . mconcat . toVotingProcedurePairs
 
 toVotingProcedurePairs :: (KeyValue a, EraPParams era) => VotingProcedure era -> [a]
-toVotingProcedurePairs vProc@(VotingProcedure _ _ _ _) =
+toVotingProcedurePairs vProc@(VotingProcedure _ _) =
   let VotingProcedure {..} = vProc
-   in [ "govActionId" .= vProcGovActionId
-      , "voter" .= vProcVoter
-      , "anchor" .= vProcAnchor
+   in [ "anchor" .= vProcAnchor
       , "decision" .= vProcVote
       ]
 
 data GovernanceProcedures era = GovernanceProcedures
-  { gpVotingProcedures :: !(Seq (VotingProcedure era))
+  { gpVotingProcedures :: !(VotingProcedures era)
   , gpProposalProcedures :: !(Seq (ProposalProcedure era))
   }
   deriving (Eq, Generic)

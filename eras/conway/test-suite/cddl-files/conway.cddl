@@ -67,14 +67,17 @@ transaction_body =
   , ? 16 : transaction_output       ; collateral return
   , ? 17 : coin                     ; total collateral
   , ? 18 : set<transaction_input>   ; reference inputs
-  , ? 19 : [* voting_procedure]     ; New; Voting procedures
+  , ? 19 : { + voting_procedure_id => voting_procedure }     ; New; Voting procedures
   , ? 20 : [* proposal_procedure]   ; New; Proposal procedures
   }
 
-voting_procedure =
+voting_procedure_id =
   [ governance_action_id
   , voter
-  , vote
+  ]
+
+voting_procedure =
+  [ vote
   , anchor / null
   ]
 

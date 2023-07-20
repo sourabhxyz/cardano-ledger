@@ -12,10 +12,10 @@ module Cardano.Ledger.Conway.Core (
 where
 
 import Cardano.Ledger.Babbage.Core as X
-import Cardano.Ledger.Conway.Governance (ProposalProcedure, VotingProcedure)
+import Cardano.Ledger.Conway.Governance.Procedures (ProposalProcedure, VotingProcedures)
 import Data.Sequence.Strict (StrictSeq)
 import Lens.Micro (Lens')
 
 class BabbageEraTxBody era => ConwayEraTxBody era where
-  votingProceduresTxBodyL :: Lens' (TxBody era) (StrictSeq (VotingProcedure era))
+  votingProceduresTxBodyL :: Lens' (TxBody era) (VotingProcedures era)
   proposalProceduresTxBodyL :: Lens' (TxBody era) (StrictSeq (ProposalProcedure era))

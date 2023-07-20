@@ -68,7 +68,7 @@ import Cardano.Ledger.Binary.Coders (
 import Cardano.Ledger.Coin (Coin (..))
 import Cardano.Ledger.Conway.Core
 import Cardano.Ledger.Conway.Era (ConwayEra)
-import Cardano.Ledger.Conway.Governance (ProposalProcedure, VotingProcedure)
+import Cardano.Ledger.Conway.Governance.Procedures (ProposalProcedure, VotingProcedures)
 import Cardano.Ledger.Conway.PParams ()
 import Cardano.Ledger.Conway.Scripts ()
 import Cardano.Ledger.Conway.TxCert (ConwayTxCert)
@@ -123,7 +123,7 @@ data ConwayTxBodyRaw era = ConwayTxBodyRaw
   , ctbrScriptIntegrityHash :: !(StrictMaybe (ScriptIntegrityHash (EraCrypto era)))
   , ctbrAuxDataHash :: !(StrictMaybe (AuxiliaryDataHash (EraCrypto era)))
   , ctbrTxNetworkId :: !(StrictMaybe Network)
-  , ctbrVotingProcedures :: !(StrictSeq (VotingProcedure era))
+  , ctbrVotingProcedures :: !(VotingProcedures era)
   , ctbrProposalProcedures :: !(StrictSeq (ProposalProcedure era))
   }
   deriving (Generic, Typeable)
@@ -395,7 +395,7 @@ pattern ConwayTxBody ::
   StrictMaybe (ScriptIntegrityHash (EraCrypto era)) ->
   StrictMaybe (AuxiliaryDataHash (EraCrypto era)) ->
   StrictMaybe Network ->
-  StrictSeq (VotingProcedure era) ->
+  VotingProcedures era ->
   StrictSeq (ProposalProcedure era) ->
   ConwayTxBody era
 pattern ConwayTxBody
@@ -509,7 +509,7 @@ encodeTxBodyRaw ConwayTxBodyRaw {..} =
         !> encodeKeyedStrictMaybe 11 ctbrScriptIntegrityHash
         !> encodeKeyedStrictMaybe 7 ctbrAuxDataHash
         !> encodeKeyedStrictMaybe 15 ctbrTxNetworkId
-        !> Omit null (Key 19 (To ctbrVotingProcedures))
+        !> Omit (null . unVotingProcedrues) (Key 19 (To ctbrVotingProcedures))
         !> Omit null (Key 20 (To ctbrProposalProcedures))
 
 instance ConwayEraTxBody era => EncCBOR (ConwayTxBodyRaw era) where
