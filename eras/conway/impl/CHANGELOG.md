@@ -2,6 +2,9 @@
 
 ## 1.7.0.0
 
+* Change `ConwayCommitteeCert` to allow committee hot keys to be script-hashes #3552
+  * from `ConwayAuthCommitteeHotKey (KeyHash 'CommitteeColdKey c) (KeyHash 'CommitteeHotKey c)`
+    to `ConwayAuthCommitteeHotKey (KeyHash 'CommitteeColdKey c) (Credential 'CommitteeHotKey c)`
 * Removal of TxOuts with zero `Coin` from UTxO on translation
 * Rename:
     `cgTally` -> `cgGov`
