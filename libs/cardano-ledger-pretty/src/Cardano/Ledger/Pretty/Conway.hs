@@ -203,10 +203,11 @@ instance PrettyA (PParamsUpdate era) => PrettyA (GovernanceAction era) where
       [("withdrawals map", prettyA ws)]
   prettyA NoConfidence =
     ppRecord "NoConfidence" []
-  prettyA (NewCommittee ms q) =
+  prettyA (NewCommittee old ms q) =
     ppRecord
       "NewCommittee"
-      [ ("members", prettyA ms)
+      [ ("oldMembers", prettyA old)
+      , ("members", prettyA ms)
       , ("quorum", prettyA q)
       ]
   prettyA (NewConstitution c) =

@@ -49,6 +49,7 @@ import Cardano.Ledger.Crypto (Crypto)
 import Cardano.Ledger.Keys (KeyHash, KeyRole (..))
 import Cardano.Ledger.SafeHash (SafeHash, extractHash)
 import Cardano.Ledger.TxIn (TxId (..))
+import Cardano.Slotting.Slot (EpochNo)
 import Control.DeepSeq (NFData (..), rwhnf)
 import Data.Aeson (KeyValue (..), ToJSON (..), ToJSONKey (..), object, pairs)
 import Data.Aeson.Types (toJSONKeyText)
@@ -301,7 +302,13 @@ data GovernanceAction era
   | HardForkInitiation !ProtVer
   | TreasuryWithdrawals !(Map (Credential 'Staking (EraCrypto era)) Coin)
   | NoConfidence
-  | NewCommittee !(Set (KeyHash 'Voting (EraCrypto era))) !Rational
+  | NewCommittee
+      -- | Old committee
+      !(Set (Credential 'CommitteeColdKey (EraCrypto era)))
+      -- | New Committee with expiration epoch
+      !(Map (Credential 'CommitteeColdKey (EraCrypto era)) EpochNo)
+      -- | Quorum
+      !Rational
   | NewConstitution !(SafeHash (EraCrypto era) ByteString)
   | InfoAction
   deriving (Generic)
@@ -325,7 +332,7 @@ instance EraPParams era => DecCBOR (GovernanceAction era) where
       dec 1 = SumD HardForkInitiation <! From
       dec 2 = SumD TreasuryWithdrawals <! From
       dec 3 = SumD NoConfidence
-      dec 4 = SumD NewCommittee <! From <! From
+      dec 4 = SumD NewCommittee <! From <! From <! From
       dec 5 = SumD NewConstitution <! From
       dec 6 = SumD InfoAction
       dec k = Invalid k
@@ -337,6 +344,6 @@ instance EraPParams era => EncCBOR (GovernanceAction era) where
       enc (HardForkInitiation pv) = Sum HardForkInitiation 1 !> To pv
       enc (TreasuryWithdrawals ws) = Sum TreasuryWithdrawals 2 !> To ws
       enc NoConfidence = Sum NoConfidence 3
-      enc (NewCommittee mems quorum) = Sum NewCommittee 4 !> To mems !> To quorum
+      enc (NewCommittee old new quorum) = Sum NewCommittee 4 !> To old !> To new !> To quorum
       enc (NewConstitution h) = Sum NewConstitution 5 !> To h
       enc InfoAction = Sum InfoAction 6

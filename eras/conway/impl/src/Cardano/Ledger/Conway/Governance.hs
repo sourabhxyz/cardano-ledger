@@ -81,7 +81,6 @@ import Data.ByteString (ByteString)
 import Data.Default.Class (Default (..))
 import Data.Map.Strict (Map)
 import Data.Sequence.Strict (StrictSeq)
-import Data.Set (Set)
 import GHC.Generics (Generic)
 import Lens.Micro (Lens', lens, (^.))
 import NoThunks.Class (NoThunks)
@@ -172,7 +171,7 @@ instance EraPParams era => FromCBOR (ConwayGovState era) where
   fromCBOR = fromEraCBOR @era
 
 data EnactState era = EnactState
-  { ensCommittee :: !(StrictMaybe (Set (KeyHash 'Voting (EraCrypto era)), Rational))
+  { ensCommittee :: !(StrictMaybe (Map (Credential 'CommitteeColdKey (EraCrypto era)) EpochNo, Rational))
   -- ^ Constitutional Committee
   , ensConstitution :: !(SafeHash (EraCrypto era) ByteString)
   -- ^ Hash of the Constitution
