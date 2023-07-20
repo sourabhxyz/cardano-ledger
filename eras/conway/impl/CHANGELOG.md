@@ -2,6 +2,8 @@
 
 ## 1.7.0.0
 
+* Make new `Constitution` data type #3556
+  * Add Constitution Script.
 * Make `Anchor` required in `ProposalProcedure`.
 * Removal of TxOuts with zero `Coin` from UTxO on translation
 * Rename:

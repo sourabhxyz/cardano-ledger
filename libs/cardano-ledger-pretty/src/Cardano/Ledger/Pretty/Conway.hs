@@ -22,6 +22,7 @@ import Cardano.Ledger.Conway (ConwayEra)
 import Cardano.Ledger.Conway.Core
 import Cardano.Ledger.Conway.Governance (
   Anchor,
+  Constitution (..),
   ConwayGovState (..),
   ConwayGovernance (..),
   GovernanceAction (..),
@@ -209,10 +210,12 @@ instance PrettyA (PParamsUpdate era) => PrettyA (GovernanceAction era) where
       [ ("members", prettyA ms)
       , ("quorum", prettyA q)
       ]
-  prettyA (NewConstitution c) =
+  prettyA (NewConstitution Constitution {..}) =
     ppRecord
       "NewConstitution"
-      [("hash", prettyA c)]
+      [ ("hash", prettyA constitutionHash)
+      , ("script", prettyA constitutionScript)
+      ]
   prettyA InfoAction =
     ppRecord "InfoAction" []
 
@@ -275,6 +278,14 @@ instance PrettyA (PParamsUpdate era) => PrettyA (GovernanceActionState era) wher
           , ("Action", prettyA gasAction)
           , ("Proposed In", prettyA gasProposedIn)
           ]
+
+instance PrettyA (Constitution era) where
+  prettyA Constitution {..} =
+    ppRecord
+      "Constitution"
+      [ ("constitutionHash", prettyA constitutionHash)
+      , ("constitutionScript", prettyA constitutionScript)
+      ]
 
 instance PrettyA (PParams era) => PrettyA (EnactState era) where
   prettyA ens@(EnactState _ _ _ _ _ _) =

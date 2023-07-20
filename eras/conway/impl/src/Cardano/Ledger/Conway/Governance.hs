@@ -38,6 +38,9 @@ module Cardano.Ledger.Conway.Governance (
   AnchorDataHash,
   ensConstitutionL,
   rsEnactStateL,
+  Constitution (..),
+  constitutionHashL,
+  constitutionScriptL,
 ) where
 
 import Cardano.Ledger.BaseTypes (EpochNo (..), ProtVer (..), StrictMaybe)
@@ -60,6 +63,7 @@ import Cardano.Ledger.Conway.Era (ConwayEra)
 import Cardano.Ledger.Conway.Governance.Procedures (
   Anchor (..),
   AnchorDataHash,
+  Constitution (..),
   GovernanceAction (..),
   GovernanceActionId (..),
   GovernanceActionIx (..),
@@ -68,16 +72,16 @@ import Cardano.Ledger.Conway.Governance.Procedures (
   Vote (..),
   Voter (..),
   VotingProcedure (..),
+  constitutionHashL,
+  constitutionScriptL,
   govActionIdToText,
  )
 import Cardano.Ledger.Core
 import Cardano.Ledger.Credential (Credential (..))
 import Cardano.Ledger.Keys (KeyHash (..), KeyRole (..))
-import Cardano.Ledger.SafeHash (SafeHash)
 import Cardano.Ledger.Shelley.Governance
 import Control.DeepSeq (NFData)
 import Data.Aeson (KeyValue, ToJSON (..), object, pairs, (.=))
-import Data.ByteString (ByteString)
 import Data.Default.Class (Default (..))
 import Data.Map.Strict (Map)
 import Data.Sequence.Strict (StrictSeq)
@@ -174,7 +178,7 @@ instance EraPParams era => FromCBOR (ConwayGovState era) where
 data EnactState era = EnactState
   { ensCommittee :: !(StrictMaybe (Set (KeyHash 'Voting (EraCrypto era)), Rational))
   -- ^ Constitutional Committee
-  , ensConstitution :: !(SafeHash (EraCrypto era) ByteString)
+  , ensConstitution :: !(Constitution era)
   -- ^ Hash of the Constitution
   , ensProtVer :: !ProtVer
   , ensPParams :: !(PParams era)
@@ -183,7 +187,7 @@ data EnactState era = EnactState
   }
   deriving (Generic)
 
-ensConstitutionL :: Lens' (EnactState era) (SafeHash (EraCrypto era) ByteString)
+ensConstitutionL :: Lens' (EnactState era) (Constitution era)
 ensConstitutionL = lens ensConstitution (\x y -> x {ensConstitution = y})
 
 instance EraPParams era => ToJSON (EnactState era) where
@@ -191,15 +195,14 @@ instance EraPParams era => ToJSON (EnactState era) where
   toEncoding = pairs . mconcat . toEnactStatePairs
 
 toEnactStatePairs :: (KeyValue a, EraPParams era) => EnactState era -> [a]
-toEnactStatePairs cg@(EnactState _ _ _ _ _ _) =
-  let EnactState {..} = cg
-   in [ "committee" .= ensCommittee
-      , "constitution" .= ensConstitution
-      , "protVer" .= ensProtVer
-      , "pparams" .= ensPParams
-      , "treasury" .= ensTreasury
-      , "withdrawals" .= ensWithdrawals
-      ]
+toEnactStatePairs EnactState {..} =
+  [ "committee" .= ensCommittee
+  , "constitution" .= ensConstitution
+  , "protVer" .= ensProtVer
+  , "pparams" .= ensPParams
+  , "treasury" .= ensTreasury
+  , "withdrawals" .= ensWithdrawals
+  ]
 
 deriving instance Eq (PParams era) => Eq (EnactState era)
 
@@ -344,4 +347,4 @@ toConwayGovernancePairs cg@(ConwayGovernance _ _) =
 
 instance EraPParams (ConwayEra c) => EraGovernance (ConwayEra c) where
   type GovernanceState (ConwayEra c) = ConwayGovernance (ConwayEra c)
-  getConstitutionHash g = Just $ g ^. cgRatifyL . rsEnactStateL . ensConstitutionL
+  getConstitutionHash g = Just $ g ^. cgRatifyL . rsEnactStateL . ensConstitutionL . constitutionHashL

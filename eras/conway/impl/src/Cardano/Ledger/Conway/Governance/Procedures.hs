@@ -26,6 +26,9 @@ module Cardano.Ledger.Conway.Governance.Procedures (
   GovernanceActionId (..),
   GovernanceActionIx (..),
   govActionIdToText,
+  constitutionHashL,
+  constitutionScriptL,
+  Constitution (..),
 ) where
 
 import Cardano.Crypto.Hash (ByteString, hashToTextAsHex)
@@ -33,6 +36,8 @@ import Cardano.Ledger.BaseTypes (ProtVer, Url)
 import Cardano.Ledger.Binary (
   DecCBOR (..),
   EncCBOR (..),
+  FromCBOR (..),
+  ToCBOR (..),
   decodeEnumBounded,
   decodeNullStrictMaybe,
   encodeEnum,
@@ -43,15 +48,17 @@ import Cardano.Ledger.Binary (
  )
 import Cardano.Ledger.Binary.Coders (Decode (..), Encode (..), decode, decodeRecordSum, encode, (!>), (<!))
 import Cardano.Ledger.Coin (Coin)
-import Cardano.Ledger.Core (Era (..), EraPParams, PParamsUpdate)
+import Cardano.Ledger.Core (Era (..), EraPParams, PParamsUpdate, ScriptHash, fromEraCBOR, toEraCBOR)
 import Cardano.Ledger.Credential (Credential (..))
 import Cardano.Ledger.Crypto (Crypto)
 import Cardano.Ledger.Keys (KeyHash, KeyRole (..))
 import Cardano.Ledger.SafeHash (SafeHash, extractHash)
+import Cardano.Ledger.Shelley.RewardProvenance ()
 import Cardano.Ledger.TxIn (TxId (..))
 import Control.DeepSeq (NFData (..), rwhnf)
 import Data.Aeson (KeyValue (..), ToJSON (..), ToJSONKey (..), object, pairs)
 import Data.Aeson.Types (toJSONKeyText)
+import Data.Default.Class (Default (..))
 import Data.Map.Strict (Map)
 import Data.Maybe.Strict (StrictMaybe)
 import Data.Sequence (Seq)
@@ -59,6 +66,7 @@ import Data.Set (Set)
 import qualified Data.Text as Text
 import Data.Word (Word64)
 import GHC.Generics (Generic)
+import Lens.Micro (Lens', lens)
 import NoThunks.Class (NoThunks)
 
 newtype GovernanceActionIx = GovernanceActionIx Word64
@@ -296,13 +304,66 @@ instance EraPParams era => EncCBOR (ProposalProcedure era) where
         !> To pProcGovernanceAction
         !> To pProcAnchor
 
+data Constitution era = Constitution
+  { constitutionHash :: !(SafeHash (EraCrypto era) ByteString)
+  , constitutionScript :: !(StrictMaybe (ScriptHash (EraCrypto era)))
+  }
+  deriving (Generic)
+
+constitutionHashL :: Lens' (Constitution era) (SafeHash (EraCrypto era) ByteString)
+constitutionHashL = lens constitutionHash (\x y -> x {constitutionHash = y})
+
+constitutionScriptL :: Lens' (Constitution era) (StrictMaybe (ScriptHash (EraCrypto era)))
+constitutionScriptL = lens constitutionScript (\x y -> x {constitutionScript = y})
+
+instance Era era => ToJSON (Constitution era) where
+  toJSON = object . toConstitutionPairs
+  toEncoding = pairs . mconcat . toConstitutionPairs
+
+toConstitutionPairs :: (KeyValue a, Era era) => Constitution era -> [a]
+toConstitutionPairs Constitution {..} =
+  [ "constitutionHash" .= constitutionHash
+  , "constitutionScript" .= constitutionScript
+  ]
+
+deriving instance Eq (Constitution era)
+
+deriving instance Show (Constitution era)
+
+instance Era era => Default (Constitution era) where
+  def = Constitution def def
+
+instance Era era => DecCBOR (Constitution era) where
+  decCBOR =
+    decode $
+      RecD Constitution
+        <! From
+        <! D (decodeNullStrictMaybe decCBOR)
+
+instance Era era => EncCBOR (Constitution era) where
+  encCBOR Constitution {..} =
+    encode $
+      Rec (Constitution @era)
+        !> To constitutionHash
+        !> E (encodeNullStrictMaybe encCBOR) constitutionScript
+
+instance Era era => ToCBOR (Constitution era) where
+  toCBOR = toEraCBOR @era
+
+instance Era era => FromCBOR (Constitution era) where
+  fromCBOR = fromEraCBOR @era
+
+instance Era era => NFData (Constitution era)
+
+instance Era era => NoThunks (Constitution era)
+
 data GovernanceAction era
   = ParameterChange !(PParamsUpdate era)
   | HardForkInitiation !ProtVer
   | TreasuryWithdrawals !(Map (Credential 'Staking (EraCrypto era)) Coin)
   | NoConfidence
   | NewCommittee !(Set (KeyHash 'Voting (EraCrypto era))) !Rational
-  | NewConstitution !(SafeHash (EraCrypto era) ByteString)
+  | NewConstitution !(Constitution era)
   | InfoAction
   deriving (Generic)
 
@@ -338,5 +399,5 @@ instance EraPParams era => EncCBOR (GovernanceAction era) where
       enc (TreasuryWithdrawals ws) = Sum TreasuryWithdrawals 2 !> To ws
       enc NoConfidence = Sum NoConfidence 3
       enc (NewCommittee mems quorum) = Sum NewCommittee 4 !> To mems !> To quorum
-      enc (NewConstitution h) = Sum NewConstitution 5 !> To h
+      enc (NewConstitution c) = Sum NewConstitution 5 !> To c
       enc InfoAction = Sum InfoAction 6
