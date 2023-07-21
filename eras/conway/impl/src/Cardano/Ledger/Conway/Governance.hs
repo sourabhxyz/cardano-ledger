@@ -33,6 +33,7 @@ module Cardano.Ledger.Conway.Governance (
   GovernanceProcedures (..),
   Anchor (..),
   AnchorDataHash,
+  indexedGovProps,
   -- Lenses
   cgGovL,
   cgRatifyL,
@@ -70,6 +71,7 @@ import Cardano.Ledger.Conway.Governance.Procedures (
   Voter (..),
   VotingProcedure (..),
   govActionIdToText,
+  indexedGovProps,
  )
 import Cardano.Ledger.Core
 import Cardano.Ledger.Credential (Credential (..))

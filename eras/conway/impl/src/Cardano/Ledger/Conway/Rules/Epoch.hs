@@ -30,17 +30,22 @@ import Cardano.Ledger.Conway.Era (ConwayEPOCH, ConwayRATIFY)
 import Cardano.Ledger.Conway.Governance (
   ConwayGovState (..),
   ConwayGovernance (..),
+  GovernanceActionId,
+  GovernanceActionState (..),
   RatifyState (..),
   cgGovL,
-  cgRatifyL, GovernanceActionId, GovernanceActionState (..), cgPropDepositsL,
+  cgPropDepositsL,
+  cgRatifyL,
  )
 import Cardano.Ledger.Conway.Rules.Enact (EnactPredFailure)
 import Cardano.Ledger.Conway.Rules.Ratify (RatifyEnv (..), RatifySignal (..))
+import Cardano.Ledger.Credential (Credential (..))
 import Cardano.Ledger.EpochBoundary (SnapShots)
 import Cardano.Ledger.PoolDistr (PoolDistr)
 import Cardano.Ledger.Shelley.LedgerState (
   EpochState,
   IncrementalStake (..),
+  LedgerState (..),
   PState (..),
   UTxOState (..),
   asReserves,
@@ -58,7 +63,7 @@ import Cardano.Ledger.Shelley.LedgerState (
   obligationCertState,
   utxosGovernanceL,
   pattern CertState,
-  pattern EpochState, LedgerState (..),
+  pattern EpochState,
  )
 import Cardano.Ledger.Shelley.Rewards ()
 import Cardano.Ledger.Shelley.Rules (
@@ -85,13 +90,12 @@ import Control.State.Transition (
  )
 import Data.Foldable (Foldable (..))
 import qualified Data.Map.Strict as Map
-import qualified Data.Sequence.Strict as Seq
-import Data.Void (Void, absurd)
-import Lens.Micro ((&), (.~), (%~))
 import Data.Maybe (fromMaybe)
 import Data.Sequence.Strict (StrictSeq)
+import qualified Data.Sequence.Strict as Seq
 import qualified Data.Set as Set
-import Cardano.Ledger.Credential (Credential(..))
+import Data.Void (Void, absurd)
+import Lens.Micro ((%~), (&), (.~))
 
 data ConwayEpochEvent era
   = PoolReapEvent (Event (EraRule "POOLREAP" era))
@@ -175,7 +179,6 @@ returnProposalDeposits ls@LedgerState {..} =
     removedProposals = rsRemoved ratifyState
     dstate = dsUnifiedL %~ returnProposalDeposits' govSt removedProposals
     removeDeps m = Map.withoutKeys m . Set.fromList . toList $ fst <$> removedProposals
-
 
 epochTransition ::
   forall era.

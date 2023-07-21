@@ -26,6 +26,7 @@ module Cardano.Ledger.Conway.Governance.Procedures (
   GovernanceActionId (..),
   GovernanceActionIx (..),
   govActionIdToText,
+  indexedGovProps,
 ) where
 
 import Cardano.Crypto.Hash (ByteString, hashToTextAsHex)
@@ -54,7 +55,7 @@ import Data.Aeson (KeyValue (..), ToJSON (..), ToJSONKey (..), object, pairs)
 import Data.Aeson.Types (toJSONKeyText)
 import Data.Map.Strict (Map)
 import Data.Maybe.Strict (StrictMaybe)
-import Data.Sequence (Seq)
+import Data.Sequence (Seq (..))
 import Data.Set (Set)
 import qualified Data.Text as Text
 import Data.Word (Word64)
@@ -259,6 +260,14 @@ data GovernanceProcedures era = GovernanceProcedures
   , gpProposalProcedures :: !(Seq (ProposalProcedure era))
   }
   deriving (Eq, Generic)
+
+indexedGovProps ::
+  Seq (ProposalProcedure era) ->
+  Seq (GovernanceActionIx, ProposalProcedure era)
+indexedGovProps = enumerateProps 0
+  where
+    enumerateProps _ Empty = Empty
+    enumerateProps n (x :<| xs) = (n, x) :<| enumerateProps (succ n) xs
 
 instance EraPParams era => NoThunks (GovernanceProcedures era)
 
